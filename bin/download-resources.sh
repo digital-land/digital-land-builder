@@ -13,8 +13,15 @@ do
 
     if [ ! -f $path ] ; then
         mkdir -p $dir
+        url="$s3$collection-collection/collection/resource/$resource" 
+        set +e
         set -x
-        curl -qsfL $flags "$s3$collection-collection/collection/resource/$resource" > $path
+        curl -qsfL $flags $url > $path
         set +x
+        status=$?
+        set -e
+        if [ $status -ne 0 ] ; then
+            echo "FAILED [$status]: $url"
+        fi
     fi
 done
