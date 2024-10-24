@@ -20,6 +20,8 @@ def fetch_historic_endpoints_data_from_dl(db_path):
         SELECT
         s.organisation,
         o.name,
+        o.name as organisation_name,
+        o.dataset,
         s.collection,
         sp.pipeline,
         l.endpoint,
@@ -44,10 +46,10 @@ def fetch_historic_endpoints_data_from_dl(db_path):
         LEFT JOIN resource r on l.resource = r.resource
 
     GROUP BY
-        1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
 
     ORDER BY
-        s.organisation, o.name, s.collection, sp.pipeline, latest_log_entry_date DESC
+        s.organisation, o.name, o.dataset, s.collection, sp.pipeline, latest_log_entry_date DESC
     """)
     data = cursor.fetchall()
     conn.close()
@@ -63,6 +65,7 @@ def fetch_latest_endpoints_data_from_dl(db_path):
             SELECT
                 s.organisation,
                 o.name,
+                o.dataset,
                 s.collection,
                 sp.pipeline,
                 l.endpoint,
@@ -103,10 +106,10 @@ def fetch_latest_endpoints_data_from_dl(db_path):
             WHERE
                 e.end_date=''
             GROUP BY
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
 
             ORDER BY
-                s.organisation, o.name, s.collection, sp.pipeline, endpoint_entry_date DESC
+                s.organisation, o.name, o.dataset, s.collection, sp.pipeline, endpoint_entry_date DESC
             ) t1
         where t1.rn = 1 
     """)
@@ -124,6 +127,8 @@ def create_reporting_tables(historic_endpoints_data, latest_endpoint_data, perfo
         CREATE TABLE IF NOT EXISTS reporting_historic_endpoints (
             organisation TEXT,
             name TEXT,
+            organisation_name TEXT,
+            dataset TEXT,
             collection TEXT,
             pipeline TEXT,
             endpoint TEXT,
@@ -141,9 +146,9 @@ def create_reporting_tables(historic_endpoints_data, latest_endpoint_data, perfo
     """)
     cursor.executemany("""
             INSERT INTO reporting_historic_endpoints (
-                organisation, name, collection, pipeline, endpoint, endpoint_url, licence, latest_status, latest_exception, resource, 
+                organisation, name, organisation_name, dataset, collection, pipeline, endpoint, endpoint_url, licence, latest_status, latest_exception, resource, 
                 latest_log_entry_date, endpoint_entry_date, endpoint_end_date, resource_start_date, resource_end_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, historic_endpoints_data)
 
      # Create the reporting_latest_endpoints table
@@ -151,6 +156,7 @@ def create_reporting_tables(historic_endpoints_data, latest_endpoint_data, perfo
         CREATE TABLE IF NOT EXISTS reporting_latest_endpoints (
             organisation TEXT,
             name TEXT,
+            dataset TEXT,
             collection TEXT,
             pipeline TEXT,
             endpoint TEXT,
@@ -172,9 +178,9 @@ def create_reporting_tables(historic_endpoints_data, latest_endpoint_data, perfo
     # Insert data into reporting_latest_endpoints
     cursor.executemany("""
             INSERT INTO reporting_latest_endpoints (
-                organisation, name, collection, pipeline, endpoint, endpoint_url, licence, latest_status, days_since_200, latest_exception, resource, 
+                organisation, name, dataset, collection, pipeline, endpoint, endpoint_url, licence, latest_status, days_since_200, latest_exception, resource, 
                 latest_log_entry_date, endpoint_entry_date, endpoint_end_date, resource_start_date, resource_end_date, rn
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, latest_endpoint_data)
 
 
