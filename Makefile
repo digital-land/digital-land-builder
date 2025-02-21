@@ -35,9 +35,9 @@ first-pass::
 	bin/download-column-field.sh
 	bin/download-converted-resources.sh
 	#bin/download-resources.sh
-	python3 bin/concat-issues.py
-	python3 bin/concat-column-field.py
-	python3 bin/concat-converted-resource.py
+	./bin/concat-issues.py
+	./bin/concat-column-field.py
+	./bin/concat-converted-resource.py
 	python3 bin/download_expectations.py
 
 

@@ -4,6 +4,7 @@ import sys
 import csv
 import hashlib
 from datetime import datetime
+import click
 
 dataset = sys.argv[1]
 output_path = sys.argv[2]
@@ -45,35 +46,39 @@ def as_date(date):
 
     return dt.strftime("%Y-%m-%d")
 
+@click.command()
+@click.argument("dataset")
+@click.argument("output_path")
+@click.argument("paths", nargs=-1, type=click.Path(exists=True))
+def process_data(dataset, output_path, paths):
+    fieldnames = []
+    with open("specification/schema-field.csv", "r", newline="") as f:
+        reader = csv.DictReader(f)
+        fieldnames = [row["field"] for row in reader if row["schema"] == dataset]
 
-fieldnames = []
-for row in csv.DictReader(open("specification/schema-field.csv", "r", newline="")):
-    if row["schema"] == dataset:
-        fieldnames.append(row["field"])
+    with open(output_path, "w", newline="") as f_out:
+        writer = csv.DictWriter(f_out, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        for path in paths:
+            with open(path, "r", newline="") as f_in:
+                reader = csv.DictReader(f_in)
+                for row in reader:
+                    if dataset == "source" and row.get("source", ""):
+                        key = f"{row['collection']}|{row['organisation']}|{row['endpoint']}"
+                        row["source"] = hashlib.md5(key.encode()).hexdigest()
+
+                    if "dataset" in fieldnames and not row.get("dataset", ""):
+                        row["dataset"] = row.get("pipeline", "")
+
+                    for col in row:
+                        if col == "entry-date":
+                            row[col] = as_timestamp(row[col])
+                        elif col.endswith("-date"):
+                            row[col] = as_date(row[col])
+
+                    writer.writerow(row)
 
 
-writer = csv.DictWriter(open(output_path, "w", newline=""), fieldnames=fieldnames, extrasaction="ignore")
-writer.writeheader()
 
-for path in paths:
-    for row in csv.DictReader(open(path, "r", newline="")):
-
-        # default the source field
-        if dataset == "source" and row.get("source", ""):
-            key = "%s|%s|%s" % (row["collection"], row["organisation"], row["endpoint"])
-            row["source"] = hashlib.md5(key.encode()).hexdigest()
-
-        # migrate piperow to dataset
-        if "dataset" in fieldnames and not row.get("dataset", ""):
-            row["dataset"] = row.get("pipeline", "")
-
-        # fix dates
-        for col in row:
-            if not col:
-                print(row)
-            if col == "entry-date":
-                row[col] = as_timestamp(row[col])
-            elif col.endswith("-date"):
-                row[col] = as_date(row[col])
-
-        writer.writerow(row)
+if __name__ == "__main__":
+    process_data()
