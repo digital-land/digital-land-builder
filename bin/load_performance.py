@@ -31,12 +31,12 @@ def fetch_issue_data(db_path):
     query = """
         select  
         count(*) as count_issues, strftime('%d-%m-%Y', 'now') as date,
-        i.issue_type as issue_type, it.severity, it.responsibility, i.dataset, i.resource, GROUP_CONCAT(DISTINCT i.field) as fields
+        i.issue_type as issue_type, it.severity, it.responsibility, i.dataset, i.resource, i.field
         from issue i
         inner join resource r on i.resource = r.resource
         inner join issue_type it on i.issue_type = it.issue_type
         where r.end_date = ''
-        group by i.dataset,i.resource,i.issue_type
+        group by i.dataset,i.resource,i.issue_type,i.field
     """
     df_issue = pd.read_sql_query(query, conn)
     return df_issue
@@ -82,6 +82,7 @@ def fetch_endpoint_summary(perf_path):
     dataset,
     endpoint,
     endpoint_url, 
+    documentation_url,
     resource,
     latest_status,
     latest_exception,
@@ -107,19 +108,25 @@ def create_performance_tables(merged_data, cf_merged_data, endpoint_summary_data
     cf_merged_data_filtered = cf_merged_data[cf_merged_data['resource'] != ""]
     cf_merged_data_filtered = cf_merged_data_filtered[cf_merged_data_filtered['endpoint'].notna(
     )]
+    cf_merged_data_filtered[column_field_table_fields].to_parquet(os.path.join(PARQUET_PERFORMANCE_DIR,
+                                        "endpoint_dataset_resource_summary.parquet"), engine="pyarrow")
     cf_merged_data_filtered[column_field_table_fields].to_sql(
         column_field_table_name, conn, if_exists="replace", index=False)
 
     issue_table_name = "endpoint_dataset_issue_type_summary"
     issue_table_fields = ["organisation", "organisation_name", "cohort", "dataset", "collection", "pipeline", "endpoint", "endpoint_url", "resource", "resource_start_date",
-                          "resource_end_date", "latest_log_entry_date", "count_issues", "date", "issue_type", "severity", "responsibility", "fields"]
+                          "resource_end_date", "latest_log_entry_date", "count_issues", "date", "issue_type", "severity", "responsibility", "field"]
     issue_data_filtered = merged_data[merged_data['resource'] != ""]
     issue_data_filtered = issue_data_filtered[issue_data_filtered['endpoint'].notna(
     )]
+    issue_data_filtered[issue_table_fields].to_parquet(os.path.join(PARQUET_PERFORMANCE_DIR,
+                                        "endpoint_dataset_issue_type_summary.parquet"), engine="pyarrow")
     issue_data_filtered[issue_table_fields].to_sql(issue_table_name, conn, if_exists='replace', index=False, dtype={
         'count_issues': 'INTEGER'})
 
     endpoint_summary_table_name = "endpoint_dataset_summary"
+    endpoint_summary_data.to_parquet(os.path.join(PARQUET_PERFORMANCE_DIR,
+                                        "endpoint_dataset_summary.parquet"), engine="pyarrow")
     endpoint_summary_data.to_sql(
         endpoint_summary_table_name, conn, if_exists='replace', index=False)
 
