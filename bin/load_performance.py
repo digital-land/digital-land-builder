@@ -18,7 +18,7 @@ PARQUET_PERFORMANCE_DIR = os.getenv("PARQUET_PERFORMANCE_DIR")
 def fetch_provision_data(db_path):
     conn = sqlite3.connect(db_path)
     query = """
-        select p.organisation, o.name as organisation_name, p.cohort, p.dataset,p.provision_reason from provision p
+        select p.organisation, o.name as organisation_name, p.cohort, p.dataset,p.provision_reason, p.end_date as provision_end_date from provision p
         inner join organisation o on o.organisation = p.organisation
         order by p.organisation
     """
@@ -131,7 +131,7 @@ def create_performance_tables(merged_data, cf_merged_data, endpoint_summary_data
         endpoint_summary_table_name, conn, if_exists='replace', index=False)
 
     # Filter out endpoints with an end date as we don't want to count them in provision summary
-    final_result = merged_data.groupby(['organisation', 'organisation_name', 'dataset', 'provision_reason']).agg(
+    final_result = merged_data.groupby(['organisation', 'organisation_name', 'dataset', 'provision_reason', 'provision_end_date']).agg(
         active_endpoint_count=pd.NamedAgg(
             column='endpoint',
             aggfunc=lambda x: x[(merged_data.loc[x.index,
