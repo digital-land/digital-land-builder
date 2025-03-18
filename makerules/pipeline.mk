@@ -138,7 +138,11 @@ define build-dataset =
 endef
 
 collection::
-	digital-land ${DIGITAL_LAND_OPTS} collection-pipeline-makerules --collection-dir $(COLLECTION_DIR) > $(COLLECTION_DIR)pipeline.mk
+	@if [ -f "state.json" ]; then \
+		digital-land ${DIGITAL_LAND_OPTS} collection-pipeline-makerules --collection-dir $(COLLECTION_DIR) --specification-dir $(SPECIFICATION_DIR) --pipeline-dir $(PIPELINE_DIR) --resource-dir $(COLLECTION_DIR)resource/ --incremental-loading-override $(INCREMENTAL_LOADING_OVERRIDE) --state-path state.json > $(COLLECTION_DIR)pipeline.mk; \
+	else \
+		digital-land ${DIGITAL_LAND_OPTS} collection-pipeline-makerules --collection-dir $(COLLECTION_DIR) --specification-dir $(SPECIFICATION_DIR) --pipeline-dir $(PIPELINE_DIR) --resource-dir $(COLLECTION_DIR)resource/ --incremental-loading-override $(INCREMENTAL_LOADING_OVERRIDE) > $(COLLECTION_DIR)pipeline.mk; \
+	fi
 
 -include $(COLLECTION_DIR)pipeline.mk
 
@@ -206,12 +210,24 @@ makerules::
 	curl -qfsL '$(MAKERULES_URL)pipeline.mk' > makerules/pipeline.mk
 
 save-transformed::
-	aws s3 sync $(TRANSFORMED_DIR) s3://$(COLLECTION_DATASET_BUCKET_NAME)/$(REPOSITORY)/$(TRANSFORMED_DIR) --no-progress
-	aws s3 sync $(ISSUE_DIR) s3://$(COLLECTION_DATASET_BUCKET_NAME)/$(REPOSITORY)/$(ISSUE_DIR) --no-progress
-	aws s3 sync $(COLUMN_FIELD_DIR) s3://$(COLLECTION_DATASET_BUCKET_NAME)/$(REPOSITORY)/$(COLUMN_FIELD_DIR) --no-progress
-	aws s3 sync $(DATASET_RESOURCE_DIR) s3://$(COLLECTION_DATASET_BUCKET_NAME)/$(REPOSITORY)/$(DATASET_RESOURCE_DIR) --no-progress
-	aws s3 sync $(CONVERTED_RESOURCE_DIR) s3://$(COLLECTION_DATASET_BUCKET_NAME)/$(REPOSITORY)/$(CONVERTED_RESOURCE_DIR) --no-progress
-	aws s3 sync $(OUTPUT_LOG_DIR) s3://$(COLLECTION_DATASET_BUCKET_NAME)/$(OUTPUT_LOG_DIR) --no-progress
+	@if [ -d "$(TRANSFORMED_DIR)" ]; then \
+		aws s3 sync $(TRANSFORMED_DIR) s3://$(COLLECTION_DATASET_BUCKET_NAME)/$(REPOSITORY)/$(TRANSFORMED_DIR) --no-progress; \
+	fi
+	@if [ -d "$(ISSUE_DIR)" ]; then \
+		aws s3 sync $(ISSUE_DIR) s3://$(COLLECTION_DATASET_BUCKET_NAME)/$(REPOSITORY)/$(ISSUE_DIR) --no-progress; \
+	fi
+	@if [ -d "$(COLUMN_FIELD_DIR)" ]; then \
+		aws s3 sync $(COLUMN_FIELD_DIR) s3://$(COLLECTION_DATASET_BUCKET_NAME)/$(REPOSITORY)/$(COLUMN_FIELD_DIR) --no-progress; \
+	fi
+	@if [ -d "$(DATASET_RESOURCE_DIR)" ]; then \
+		aws s3 sync $(DATASET_RESOURCE_DIR) s3://$(COLLECTION_DATASET_BUCKET_NAME)/$(REPOSITORY)/$(DATASET_RESOURCE_DIR) --no-progress; \
+	fi
+	@if [ -d "$(CONVERTED_RESOURCE_DIR)" ]; then \
+		aws s3 sync $(CONVERTED_RESOURCE_DIR) s3://$(COLLECTION_DATASET_BUCKET_NAME)/$(REPOSITORY)/$(CONVERTED_RESOURCE_DIR) --no-progress; \
+	fi
+	@if [ -d "$(OUTPUT_LOG_DIR)" ]; then \
+		aws s3 sync $(OUTPUT_LOG_DIR) s3://$(COLLECTION_DATASET_BUCKET_NAME)/$(OUTPUT_LOG_DIR) --no-progress; \
+	fi
 
 save-dataset::
 	@mkdir -p $(DATASET_DIR)
@@ -274,7 +290,7 @@ clean::
 	rm -f $(PIPELINE_CONFIG_FILES)
 
 state.json:
-	digital-land save-state --specification-dir=specification --collection-dir=$(COLLECTION_DIR) --pipeline-dir=$(PIPELINE_DIR) --resource-dir=$(COLLECTION_DIR)resource/ --incremental-override=$(INCREMENTAL_LOADING_OVERRIDE) --output-path=state.json
+	digital-land save-state --specification-dir=specification --collection-dir=$(COLLECTION_DIR) --pipeline-dir=$(PIPELINE_DIR) --resource-dir=$(COLLECTION_DIR)resource/ --incremental-loading-override=$(INCREMENTAL_LOADING_OVERRIDE) --output-path=state.json
 
 save-state:: state.json
 	aws s3 cp state.json s3://$(COLLECTION_DATASET_BUCKET_NAME)/$(REPOSITORY)/state.json --no-progress
